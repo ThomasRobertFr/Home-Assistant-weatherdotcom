@@ -34,12 +34,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     """Set up the Weather.com component."""
     hass.data.setdefault(DOMAIN, {})
 
-    if hass.config.units is METRIC_SYSTEM:
-        unit_system_api = API_URL_METRIC
-        unit_system = API_METRIC
-    else:
-        unit_system_api = API_URL_IMPERIAL
-        unit_system = API_IMPERIAL
+    # Always query the API in imperial: weather.com returns temperatures as
+    # integers whatever the unit, and integer degF is a finer step (0.56 degC)
+    # than integer degC. The entities declare imperial native units, so HA
+    # converts to the configured unit system.
+    unit_system_api = API_URL_IMPERIAL
+    unit_system = API_IMPERIAL
 
 # Initialize legacy and new instances
     config = WeatherUpdateCoordinatorConfig(

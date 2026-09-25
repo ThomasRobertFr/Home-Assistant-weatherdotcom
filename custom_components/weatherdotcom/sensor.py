@@ -87,8 +87,11 @@ class WeatherSensor(CoordinatorEntity, SensorEntity):
         else:
             self._sensor_data = _get_sensor_data(
                 coordinator.data, description.key, self._unit_system)
-        self._attr_native_unit_of_measurement = self.entity_description.unit_fn(
-            self.coordinator.hass.config.units is METRIC_SYSTEM)
+        # Data is always fetched in imperial (see __init__.py); HA converts it.
+        self._attr_native_unit_of_measurement = self.entity_description.unit_fn(False)
+        if description.device_class == SensorDeviceClass.TEMPERATURE:
+            # Converted values are unrounded floats (e.g. 33.888...)
+            self._attr_suggested_display_precision = 1
 
     @property
     def available(self) -> bool:
