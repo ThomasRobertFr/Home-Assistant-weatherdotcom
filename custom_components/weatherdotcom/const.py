@@ -115,6 +115,8 @@ FIELD_WIND_CHILL: Final = 'temperatureWindChill'
 
 HIGH_TEMP_TODAY_STORAGE: Final = 'high_temp_today'
 HIGH_TEMP_TODAY_TIMESTAMP_STORAGE: Final = 'high_temp_today_timestamp'
+# Overnight lows keyed by the validTimeUtc of the day they follow
+LOW_TEMP_NIGHTS_STORAGE: Final = 'low_temp_nights'
 
 CONF_EXTRA_ATTRIBUTES: Final = "extra_attributes"
 EXTRA_ATTRIBUTE_KEYS_DAILY: Final[list[str]] = [

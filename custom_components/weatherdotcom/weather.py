@@ -5,6 +5,7 @@ https://github.com/jaydeethree/Home-Assistant-weatherdotcom
 """
 
 import logging
+from typing import Any
 
 from homeassistant.components.weather import (
     ATTR_FORECAST_CLOUD_COVERAGE,
@@ -56,6 +57,7 @@ from .const import (
 
     HIGH_TEMP_TODAY_STORAGE,
     HIGH_TEMP_TODAY_TIMESTAMP_STORAGE,
+    LOW_TEMP_NIGHTS_STORAGE,
     RESULTS_FORECAST_DAILY,
     RESULTS_FORECAST_HOURLY,
 )
@@ -241,8 +243,7 @@ class WeatherDotComForecast(SingleCoordinatorWeatherEntity):
                 ATTR_FORECAST_NATIVE_TEMP:
                     temperature_max,
                 ATTR_FORECAST_NATIVE_TEMP_LOW:
-                    self.coordinator.get_forecast_daily(
-                        FIELD_TEMPERATUREMIN, period),
+                    self._low_temp_for_day(period // 2, stored_data),
 
                 ATTR_FORECAST_TIME:
                     self.coordinator.format_timestamp(
@@ -259,6 +260,33 @@ class WeatherDotComForecast(SingleCoordinatorWeatherEntity):
                     FIELD_WINDSPEED, period)
             }))
         return forecast
+
+    def _low_temp_for_day(self, day: int, stored_data: dict[str, Any]) -> float | None:
+        """
+        Return the low of the night *before* the given day.
+
+        Weather.com days run 7am to 7am, so temperatureMin for a day is the
+        night that follows it. Most providers and observation networks call
+        the morning low the day's low, so report the previous day's value.
+        """
+        if day > 0:
+            return self.coordinator.get_forecast_daily(
+                FIELD_TEMPERATUREMIN, 2 * (day - 1))
+
+        # Last night is no longer in the API response: use the value stored
+        # while it was still "tonight".
+        valid_time = self.coordinator.get_forecast_daily(FIELD_VALIDTIMEUTC, 0)
+        if valid_time is not None:
+            nights = stored_data.get(LOW_TEMP_NIGHTS_STORAGE) or {}
+            for night_valid_time, low in nights.items():
+                # One day earlier, give or take a DST change
+                if abs(valid_time - int(night_valid_time) - 24 * 60 * 60) <= 2 * 60 * 60:
+                    return low
+        _LOGGER.debug(
+            'No stored value for last night\'s low - minimum temperature'
+            ' data in the daily forecast will be missing for today for: %s',
+            self.entity_id)
+        return None
 
     async def async_forecast_twice_daily(self) -> list[Forecast] | None:
         """Return the twice daily forecast in native units."""

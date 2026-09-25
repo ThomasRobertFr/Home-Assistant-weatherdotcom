@@ -12,11 +12,15 @@ from .const import (
     DOMAIN,
 
     HIGH_TEMP_TODAY_STORAGE,
-    HIGH_TEMP_TODAY_TIMESTAMP_STORAGE
+    HIGH_TEMP_TODAY_TIMESTAMP_STORAGE,
+    LOW_TEMP_NIGHTS_STORAGE
 )
 
 STORAGE_KEY = '{domain}.{location_name}'
 STORAGE_VERSION = 1
+
+# Only the previous night is ever read back; keep a few for safety.
+MAX_STORED_NIGHTS = 3
 
 
 class WeatherDotComStorage:
@@ -36,18 +40,25 @@ class WeatherDotComStorage:
         return self._data
 
     async def async_save(
-        self, high_temp_today: int | float, high_temp_today_timestamp: int
+        self,
+        high_temp_today: int | float | None = None,
+        high_temp_today_timestamp: int | None = None,
+        low_temp_night: int | float | None = None,
+        low_temp_night_valid_time: int | None = None,
     ) -> None:
+        """Merge the given values into what is already stored."""
         current = await self.async_load()
-        if (
-            current.get(HIGH_TEMP_TODAY_STORAGE) == high_temp_today
-            and current.get(HIGH_TEMP_TODAY_TIMESTAMP_STORAGE) == high_temp_today_timestamp
-        ):
+        data_to_save = dict(current)
+        if high_temp_today is not None and high_temp_today_timestamp is not None:
+            data_to_save[HIGH_TEMP_TODAY_STORAGE] = high_temp_today
+            data_to_save[HIGH_TEMP_TODAY_TIMESTAMP_STORAGE] = high_temp_today_timestamp
+        if low_temp_night is not None and low_temp_night_valid_time is not None:
+            nights = dict(current.get(LOW_TEMP_NIGHTS_STORAGE) or {})
+            nights[str(low_temp_night_valid_time)] = low_temp_night
+            data_to_save[LOW_TEMP_NIGHTS_STORAGE] = dict(
+                sorted(nights.items(), key=lambda kv: int(kv[0]))[-MAX_STORED_NIGHTS:])
+        if data_to_save == current:
             return
-        data_to_save = {
-            HIGH_TEMP_TODAY_STORAGE: high_temp_today,
-            HIGH_TEMP_TODAY_TIMESTAMP_STORAGE: high_temp_today_timestamp,
-        }
         self._data = data_to_save
         await self._store.async_save(data_to_save)
 

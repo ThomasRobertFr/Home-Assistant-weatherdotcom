@@ -203,20 +203,26 @@ class WeatherUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         )
         if result_forecast_daily is not None:
             # If the result includes max temperature data for today,
-            # update that data in storage.
+            # update that data in storage. Tonight's low is reported as
+            # tomorrow's low (see weather.py), but the API drops it once the
+            # day rolls over, so keep it in storage too.
             temp_max_list = result_forecast_daily.get(FIELD_TEMPERATUREMAX)
+            temp_min_list = result_forecast_daily.get(FIELD_TEMPERATUREMIN)
             valid_time_list = result_forecast_daily.get(FIELD_VALIDTIMEUTC)
-            if (
-                temp_max_list
-                and temp_max_list[0] is not None
-                and valid_time_list
-                and valid_time_list[0] is not None
-            ):
+            valid_time = valid_time_list[0] if valid_time_list else None
+            temp_max = temp_max_list[0] if temp_max_list else None
+            temp_min = temp_min_list[0] if temp_min_list else None
+            if valid_time is not None and (temp_max is not None or temp_min is not None):
                 try:
-                    await self.store.async_save(temp_max_list[0], valid_time_list[0])
+                    await self.store.async_save(
+                        high_temp_today=temp_max,
+                        high_temp_today_timestamp=valid_time,
+                        low_temp_night=temp_min,
+                        low_temp_night_valid_time=valid_time,
+                    )
                 except OSError as err:
                     _LOGGER.warning(
-                        "Failed to save high temperature to storage: %s", err
+                        "Failed to save temperatures to storage: %s", err
                     )
 
         prev_data = self.data or {}
