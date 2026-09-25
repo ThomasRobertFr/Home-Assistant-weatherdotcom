@@ -110,6 +110,8 @@ ICON_WIND = 'mdi:weather-windy'
 
 HIGH_TEMP_TODAY_STORAGE = 'high_temp_today'
 HIGH_TEMP_TODAY_TIMESTAMP_STORAGE = 'high_temp_today_timestamp'
+# Overnight lows keyed by the validTimeUtc of the day they follow
+LOW_TEMP_NIGHTS_STORAGE = 'low_temp_nights'
 
 CONF_EXTRA_ATTRIBUTES = "extra_attributes"
 EXTRA_ATTRIBUTE_KEYS_DAILY = [

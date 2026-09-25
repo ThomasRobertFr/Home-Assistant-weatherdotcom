@@ -202,8 +202,17 @@ class WeatherUpdateCoordinator(DataUpdateCoordinator):
                     # If the result includes max temperature data for today,
                     # update that data in storage.
                     temperature_max = result_forecast_daily[FIELD_TEMPERATUREMAX][0]
-                    if temperature_max != None:
-                        await self._store.async_save(temperature_max, round(time.time()))
+                    # Tonight's low is reported as tomorrow's low (see
+                    # weather.py), but the API drops it once the day rolls
+                    # over, so keep it in storage too.
+                    temperature_min = result_forecast_daily[FIELD_TEMPERATUREMIN][0]
+                    if temperature_max != None or temperature_min != None:
+                        await self._store.async_save(
+                            high_temp_today=temperature_max,
+                            high_temp_today_timestamp=round(time.time()),
+                            low_temp_night=temperature_min,
+                            low_temp_night_valid_time=result_forecast_daily[FIELD_VALIDTIMEUTC][0],
+                        )
                     break
             except (ValueError, asyncio.TimeoutError, aiohttp.ClientError) as err:
                 if attempt == 1:

@@ -36,7 +36,8 @@ from .const import (
     FIELD_WINDSPEED,
 
     HIGH_TEMP_TODAY_STORAGE,
-    HIGH_TEMP_TODAY_TIMESTAMP_STORAGE
+    HIGH_TEMP_TODAY_TIMESTAMP_STORAGE,
+    LOW_TEMP_NIGHTS_STORAGE
 )
 from .store import WeatherDotComStorage
 
@@ -250,8 +251,7 @@ class WeatherDotComForecast(WeatherDotCom):
                 ATTR_FORECAST_TEMP:
                     temperature_max,
                 ATTR_FORECAST_TEMP_LOW:
-                    self.coordinator.get_forecast_daily(
-                        FIELD_TEMPERATUREMIN, period),
+                    self._low_temp_for_day(period // 2),
 
                 ATTR_FORECAST_TIME:
                     self.coordinator._format_timestamp(
@@ -266,6 +266,33 @@ class WeatherDotComForecast(WeatherDotCom):
                     FIELD_WINDSPEED, period)
             }))
         return forecast
+
+    def _low_temp_for_day(self, day: int) -> float | None:
+        """
+        Return the low of the night *before* the given day.
+
+        Weather.com days run 7am to 7am, so temperatureMin for a day is the
+        night that follows it. Most providers and observation networks call
+        the morning low the day's low, so report the previous day's value.
+        """
+        if day > 0:
+            return self.coordinator.get_forecast_daily(
+                FIELD_TEMPERATUREMIN, 2 * (day - 1))
+
+        # Last night is no longer in the API response: use the value stored
+        # while it was still "tonight".
+        valid_time = self.coordinator.get_forecast_daily(FIELD_VALIDTIMEUTC, 0)
+        if valid_time is not None:
+            nights = self._stored_data.get(LOW_TEMP_NIGHTS_STORAGE, {})
+            for night_valid_time, low in nights.items():
+                # One day earlier, give or take a DST change
+                if abs(valid_time - int(night_valid_time) - 24 * 60 * 60) <= 2 * 60 * 60:
+                    return low
+        _LOGGER.debug(
+            'No stored value for last night\'s low - minimum temperature'
+            ' data in the daily forecast will be missing for today for: %s',
+            self.entity_id)
+        return None
 
     @property
     def forecast_hourly(self) -> list[Forecast]:
