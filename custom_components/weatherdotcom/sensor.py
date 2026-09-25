@@ -7,7 +7,11 @@ from __future__ import annotations
 
 from typing import Any
 
-from homeassistant.components.sensor import ENTITY_ID_FORMAT, SensorEntity
+from homeassistant.components.sensor import (
+    ENTITY_ID_FORMAT,
+    SensorDeviceClass,
+    SensorEntity,
+)
 from homeassistant.const import CONF_LATITUDE, CONF_LONGITUDE
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import generate_entity_id
@@ -86,6 +90,10 @@ class WeatherSensor(CoordinatorEntity[WeatherUpdateCoordinator], SensorEntity):
         self._attr_native_unit_of_measurement = self.entity_description.unit_fn(
             self.coordinator.units
         )
+        if description.device_class == SensorDeviceClass.TEMPERATURE:
+            # Data is always fetched in imperial (see __init__.py) and HA
+            # converts it, so converted values are unrounded floats.
+            self._attr_suggested_display_precision = 1
         if description.key == FIELD_VALIDTIMEUTC:
             self._attr_entity_registry_enabled_default = bool(extra_attributes)
 

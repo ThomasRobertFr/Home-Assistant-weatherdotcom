@@ -9,7 +9,6 @@ from homeassistant.const import (
     Platform
 )
 from homeassistant.core import HomeAssistant
-from homeassistant.util.unit_system import METRIC_SYSTEM
 from .coordinator import (
     WeatherDotComConfigEntry,
     WeatherUpdateCoordinator,
@@ -21,7 +20,6 @@ from .const import (
     CONF_LOCATION_SOURCE,
     LOCATION_TYPE_ENTITY,
     LOCATION_TYPE_LATLONG,
-    API_URL_METRIC,
     API_URL_IMPERIAL
 )
 
@@ -30,10 +28,11 @@ PLATFORMS: Final = [Platform.WEATHER, Platform.SENSOR]
 
 async def async_setup_entry(hass: HomeAssistant, entry: WeatherDotComConfigEntry) -> bool:
     """Set up the Weather.com component."""
-    if hass.config.units is METRIC_SYSTEM:
-        unit_system_api = API_URL_METRIC
-    else:
-        unit_system_api = API_URL_IMPERIAL
+    # Always query the API in imperial: weather.com returns temperatures as
+    # integers whatever the unit, and integer degF is a finer step (0.56 degC)
+    # than integer degC. The entities declare imperial native units, so HA
+    # converts to the configured unit system.
+    unit_system_api = API_URL_IMPERIAL
 
     lang = entry.data[CONF_LANG]
 
